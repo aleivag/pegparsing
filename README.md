@@ -6,6 +6,8 @@ Under the covers `pegparsing` will translate the peg instruction and allow the
 text to be processed by [pyparsing](http://pyparsing.wikispaces.com/), you dont 
 have to know or care about that.
 
+![travis-status](https://api.travis-ci.org/aleivag/pegparsing.svg?branch=master)
+
 Example use:
 ------------
 
@@ -287,7 +289,7 @@ by a `delta_time`. this has the disadvantage that will only parse stuff like `ye
 but not just `yesterday`. Let’s fix that
 
 ```python
->>> parser.expr['time_expr'] = ('base_time ("+"! delta_time')?)
+>>> parser.expr['time_expr'] = ('base_time ("+"! delta_time)?')
 >>> c = c = parser.compile()
 >>> c['time_expr'].parseString('now + 2d')
 ([datetime.datetime(2017, 5, 6, 14, 56, 4, 708785), timedelta(2)], {})
