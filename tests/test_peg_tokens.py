@@ -1,11 +1,10 @@
 
-
-
 def test_regex_token(parser, pyparsing):
     parser.expr['regx'] = r'/\d/'
     c = parser.compile()
     assert isinstance(c['regx'].expr, pyparsing.Regex)
     assert c['regx'].expr.pattern == r'\d'
+
 
 def test_quoted_string_token(parser, pyparsing):
     parser.expr.update({
@@ -17,6 +16,7 @@ def test_quoted_string_token(parser, pyparsing):
     assert c['st'].expr.match == "str1"
     assert isinstance(c['dt'].expr, pyparsing.Literal)
     assert c['dt'].expr.match == "str2"
+
 
 def test_token_token(parser, pyparsing):
     parser.expr.update({

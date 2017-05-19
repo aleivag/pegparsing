@@ -22,43 +22,43 @@ PATH=/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin
 
 class Crontab(object):
     def __init__(self):
-        self.variables = {} 
+        self.variables = {}
         self.cronline = []
 
+
 def test_crontab(parser):
-    
+
     ct = Crontab()
-    
+
     parser.expr.update({
         'comment': '/#.*/'
     })
-    
+
     @parser.peg('identifier "="! /.+/')
     def vars_assig(result):
         ct.variables[result[0]] = result[1]
         return [list(result)]
-    
+
     @parser.peg('(integer | "*") ("/" integer)?')
     def number_or_star(result):
         return result[0]
-    
+
     @parser.peg(
         '@min:number_or_star @hour:number_or_star '
         '@dom:number_or_star @month:number_or_star '
-        '@dow:number_or_star @user:identifier @cmd:/.+/'
-        )
+        '@dow:number_or_star @user:identifier @cmd:/.+/')
     def cronline(result):
         ct.cronline.append(dict(result))
         return ct.cronline[-1]
-    
+
     @parser.peg('(vars_assig | cronline | comment!)+')
     def crontab(result):
         return list(result)
-    
-    parsed =  crontab.parseString(CRONTAB)
-    
+
+    parsed = crontab.parseString(CRONTAB)
+
     assert ct.variables == {
-        'PATH': '/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin', 
+        'PATH': '/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin',
         'SHELL': '/bin/sh'
     }
     assert len(parsed) == 7
