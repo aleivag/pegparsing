@@ -1,5 +1,4 @@
 import imp
-import six
 
 __version__ = '0.0.1b0'
 
@@ -109,13 +108,12 @@ class Parser(object):
             method_name +
             self.privparser.Literal('[').suppress() +
             self.privparser.delimitedList(
-                six.moves.reduce(
-                    lambda x, y: x | y,
-                    map(
-                        optional_ws,
-                        [token, qstring1, qstring2, regex, method, method_name]
-                    )
-                )
+                optional_ws(token) |
+                optional_ws(qstring1) |
+                optional_ws(qstring2) |
+                optional_ws(regex) |
+                optional_ws(method) |
+                optional_ws(method_name)
             ) +
             self.privparser.Literal(']').suppress()
         ).setParseAction(
@@ -277,13 +275,11 @@ class Parser(object):
             method_name +
             preparser.Literal('[').suppress() +
             preparser.delimitedList(
-                six.moves.reduce(
-                    lambda x, y: x | y,
-                    map(
-                        optional_ws,
-                        [token_ident, qstring, regex, method, method_name]
-                    )
-                )
+                optional_ws(token_ident) |
+                optional_ws(qstring) |
+                optional_ws(regex) |
+                optional_ws(method) |
+                optional_ws(method_name)
             ) +
             preparser.Literal(']').suppress()
         ).setParseAction(
