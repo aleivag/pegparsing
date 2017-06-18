@@ -1,5 +1,7 @@
 import imp
 
+from functools import partial
+
 __version__ = '0.0.1b0'
 
 
@@ -56,7 +58,12 @@ class Parser(object):
         )
 
         def apply_method(method, varargs):
-            result = method(*varargs)
+            for arg in varargs:
+                if isinstance(arg, dict):
+                    method = partial(method, **arg)
+                else:
+                    method = partial(method, arg)
+            result = method()
             return result
 
         def get_token(token):
@@ -104,17 +111,23 @@ class Parser(object):
             lambda r: self.methods[r[1]]
         )
 
+        method_argument = self.privparser.Optional(name_dentifier + self.privparser.Suppress(":")) + (
+            optional_ws(token) |
+            optional_ws(qstring1) |
+            optional_ws(qstring2) |
+            optional_ws(regex) |
+            optional_ws(method) |
+            optional_ws(method_name)
+        )
+        method_argument = method_argument.setParseAction(
+            lambda x: x[0] if len(x) == 1 else {x[0]['name']: x[1]})
+
+        method_arguments = self.privparser.delimitedList(method_argument)
+
         method << (
             method_name +
             self.privparser.Literal('[').suppress() +
-            self.privparser.delimitedList(
-                optional_ws(token) |
-                optional_ws(qstring1) |
-                optional_ws(qstring2) |
-                optional_ws(regex) |
-                optional_ws(method) |
-                optional_ws(method_name)
-            ) +
+            method_arguments +
             self.privparser.Literal(']').suppress()
         ).setParseAction(
             lambda x: apply_method(x[0], x[1:])
@@ -230,7 +243,12 @@ class Parser(object):
         )
 
         def apply_method(method, varargs):
-            result = method(*varargs)
+            for arg in varargs:
+                if isinstance(arg, dict):
+                    method = partial(method, **arg)
+                else:
+                    method = partial(method, arg)
+            result = method()
             return result
 
         def optional_ws(x):
@@ -271,16 +289,23 @@ class Parser(object):
             lambda r: self.methods[r[1]]
         )
 
+        method_argument = preparser.Optional(name_dentifier + preparser.Suppress(":")) + (
+            optional_ws(token_ident) |
+            optional_ws(qstring) |
+            optional_ws(regex) |
+            optional_ws(method) |
+            optional_ws(method_name)
+        )
+
+        method_argument = method_argument.setParseAction(
+            lambda x: x[0] if len(x) == 1 else {x[0]['name']: x[1]})
+
+        method_arguments = preparser.delimitedList(method_argument)
+
         method << (
             method_name +
             preparser.Literal('[').suppress() +
-            preparser.delimitedList(
-                optional_ws(token_ident) |
-                optional_ws(qstring) |
-                optional_ws(regex) |
-                optional_ws(method) |
-                optional_ws(method_name)
-            ) +
+            method_arguments +
             preparser.Literal(']').suppress()
         ).setParseAction(
             lambda x: apply_method(x[0], x[1:])

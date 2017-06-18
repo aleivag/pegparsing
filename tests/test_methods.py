@@ -9,6 +9,16 @@ def test_build_in_method(parser):
     assert list(compiled['test'].parseString('1,42,3,4')) == [1, 42, 3, 4]
 
 
+def test_build_in_method_space_in_it(parser):
+    parser.expr.update({
+        'test': '$delimitedList[number]',
+    })
+
+    compiled = parser.compile()
+
+    assert list(compiled['test'].parseString('1, 42 , 3 , 4')) == [1, 42, 3, 4]
+
+
 def test_custom_method(parser):
     def echo(x):
         return x
@@ -124,3 +134,42 @@ def test_decorator(parser):
 
     c = parser.compile()
     assert c['test'].parseString('42')[0] == 42
+
+
+def test_method_name_param(parser):
+    @parser.method
+    def echo(x):
+        return x
+
+    @parser.method
+    def appl(method, arg):
+        return method(arg)
+
+    assert parser.methods['echo'] == echo
+    assert parser.methods['appl'] == appl
+
+    parser.expr.update({
+        'test': '$appl[@arg:number,@method:$echo]',
+    })
+
+    c = parser.compile()
+    assert c['test'].parseString('42')[0] == 42
+
+
+def test_method_name_param_selfcompile(parser):
+    @parser.method
+    def echo(x):
+        return x
+
+    @parser.method
+    def appl(method, arg):
+        return method(arg)
+
+    assert parser.methods['echo'] == echo
+    assert parser.methods['appl'] == appl
+
+    @parser.peg('$appl[@arg:number,@method:$echo]')
+    def test(result):
+        return result
+
+    assert test.parseString('42')[0] == 42
