@@ -10,9 +10,8 @@ ${vdir}/bin/python setup.py install > /dev/null
 
 source ${vdir}/bin/activate
 
-ipython
+ipython "$@"
 
 deactivate
 
 rm -rf ${vdir}
-

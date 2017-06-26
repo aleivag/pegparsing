@@ -63,7 +63,7 @@ def test_nested_methods(parser):
     assert list(c['test'].parseString('1,42,3,4')) == [1, 42, 3, 4]
 
 
-def test_method_and_name(parser):
+def test_method_and_name(report, parser):
     def echo(x):
         return x
 
@@ -74,8 +74,9 @@ def test_method_and_name(parser):
         'test': '@me:$echo[number]',
         'test2': '@me:($echo[number])',
     })
+    with report.create_timer('compile'):
+        c = parser.compile()
 
-    c = parser.compile()
     assert c['test'].parseString('42')['me'] == 42
     assert c['test2'].parseString('42')['me'] == 42
 

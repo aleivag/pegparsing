@@ -15,7 +15,7 @@ Status=Up/Down
 UN 10.1.2.6 18.9 gb 256 9.5% 36fdcf57-0274-43b8-a501-c0e475e3e30b RAC1"""
 
 
-def test_nodetol_status_parser(parser):
+def test_nodetol_status_parser(report, parser):
     sizec = {'k': 1024, 'm': 1024**2, 'g': 1024**3}
     parser.expr.update({
         'state': "/[UD]/",
@@ -56,7 +56,8 @@ def test_nodetol_status_parser(parser):
     def dcs(result):
         return {k: v for k, v in result}
 
-    c = parser.compile()
+    with report.create_timer('compile'):
+        c = parser.compile()
 
     out = c['dcs'].parseString(status)[0]
 
@@ -64,8 +65,15 @@ def test_nodetol_status_parser(parser):
     assert len(out['r1']) == 3
     assert len(out['DC1']) == 1
 
+    with report.create_timer('direct_call'):
+        out = dcs.parseString(status)[0]
 
-def test_nodetol_status_better_parser(parser):
+    assert set(out.keys()) == set(['r1', 'DC1'])
+    assert len(out['r1']) == 3
+    assert len(out['DC1']) == 1
+
+
+def test_nodetol_status_better_parser(report, parser):
     sizec = {'k': 1024, 'm': 1024**2, 'g': 1024**3}
     parser.expr.update({
         'state': "/[UD]/",
@@ -105,9 +113,17 @@ def test_nodetol_status_better_parser(parser):
     def dcs(result):
         return {k: v for k, v in result}
 
-    c = parser.compile()
+    with report.create_timer('compile'):
+        c = parser.compile()
 
     out = c['dcs'].parseString(status)[0]
+
+    assert set(out.keys()) == set(['r1', 'DC1'])
+    assert len(out['r1']) == 3
+    assert len(out['DC1']) == 1
+
+    with report.create_timer('direct_call'):
+        out = dcs.parseString(status)[0]
 
     assert set(out.keys()) == set(['r1', 'DC1'])
     assert len(out['r1']) == 3
