@@ -24,4 +24,6 @@ def test_token_token(parser, pyparsing):
         'll': "st",
     })
     c = parser.compile()
-    assert c['ll'].expr.expr == c['st'].expr
+    assert c['ll'].expr.name == c['st'].expr.name
+    assert c['ll'].parseString('test1')[0] == 'test1'
+    assert c['st'].parseString('test1')[0] == 'test1'
