@@ -25,9 +25,12 @@ class ParseAction(object):
         self.name = name
         self.fnc = fnc
 
+    @property
+    def expr(self):
+        return self.parser._compile(self.name)
+
     def parseString(self, string, parseAll=True):
-        c = self.parser._compile(self.name)
-        return c.parseString(string, parseAll=parseAll)
+        return self.expr.parseString(string, parseAll=parseAll)
 
 
 class Parser(object):
@@ -47,145 +50,8 @@ class Parser(object):
 
         self.tokens = {}
 
-        self.init_private_parser()
-
-    def init_private_parser(self):
-        self.privparser.ParserElement.setDefaultWhitespaceChars('')
-        WS = (
-            self.privparser.Literal(" ") |
-            self.privparser.Literal("\t") |
-            self.privparser.Literal("\n")
-        )
-
-        def apply_method(method, varargs):
-            for arg in varargs:
-                if isinstance(arg, dict):
-                    method = partial(method, **arg)
-                else:
-                    method = partial(method, arg)
-            result = method()
-            return result
-
-        def get_token(token):
-            tok = self.tokens.get(token)
-            if tok is not None:
-                return tok
-
-            raise NotImplementedError('Stil not implemented dinamic read')
-
-        def optional_ws(x):
-            return (
-                self.privparser.ZeroOrMore(WS).suppress() +
-                x +
-                self.privparser.ZeroOrMore(WS).suppress()
-            )
-
-        qstring1 = self.privparser.QuotedString("'").setParseAction(
-            lambda t: self.pubparser.Literal(t[0]))
-        qstring2 = self.privparser.QuotedString('"').setParseAction(
-            lambda t: self.pubparser.Literal(t[0]))
-
-        regex = self.privparser.QuotedString('/').setParseAction(
-            lambda t: self.pubparser.Regex(t[0]))
-
-        token = self.privparser.pyparsing_common.\
-            identifier.copy().setParseAction(
-                lambda t: get_token(t[0])
-            )
-
-        name_dentifier = (
-            self.privparser.Literal("@") +
-            self.privparser.pyparsing_common.identifier.copy()
-        ).setParseAction(
-            lambda r: {'name': r[1]}
-        )
-
-        method = self.privparser.Forward()
-
-        operand = name_dentifier | token | qstring1 | qstring2 | regex | method
-
-        method_name = (
-            self.privparser.Literal('$') +
-            self.privparser.pyparsing_common.identifier
-        ).setParseAction(
-            lambda r: self.methods[r[1]]
-        )
-
-        method_argument = self.privparser.Optional(name_dentifier + self.privparser.Suppress(":")) + (
-            optional_ws(token) |
-            optional_ws(qstring1) |
-            optional_ws(qstring2) |
-            optional_ws(regex) |
-            optional_ws(method) |
-            optional_ws(method_name)
-        )
-        method_argument = method_argument.setParseAction(
-            lambda x: x[0] if len(x) == 1 else {x[0]['name']: x[1]})
-
-        method_arguments = self.privparser.delimitedList(method_argument)
-
-        method << (
-            method_name +
-            self.privparser.Literal('[').suppress() +
-            method_arguments +
-            self.privparser.Literal(']').suppress()
-        ).setParseAction(
-            lambda x: apply_method(x[0], x[1:])
-        )
-
-        _optional = self.privparser.Literal('?').setParseAction(
-            lambda u: self.pubparser.Optional)
-        _zero_or_more = self.privparser.Literal('*').setParseAction(
-            lambda u: self.pubparser.ZeroOrMore)
-        _one_or_more = self.privparser.Literal('+').setParseAction(
-            lambda u: self.pubparser.OneOrMore)
-        _ignore = self.privparser.Literal('!').setParseAction(
-            lambda u: self.pubparser.Suppress)
-
-        def nameAction(x, y):
-            return y.setResultsName(x['name'])
-
-        _names = self.privparser.Literal(':').setParseAction(
-            lambda u: nameAction)
-        _and = (self.privparser.OneOrMore(WS)).setParseAction(
-            lambda u: lambda x, y: x + y)
-        _or = (
-            self.privparser.ZeroOrMore(WS) +
-            self.privparser.Literal("|") +
-            self.privparser.ZeroOrMore(WS)
-        ).setParseAction(
-            lambda u: lambda x, y: x | y)
-
-        def infix(x):
-            l = list(x[0])
-            while len(l) > 1:
-                a, o, b = l.pop(0), l.pop(0), l.pop(0)
-                l.insert(0, o(a, b))
-            if l:
-                return l[0]
-
-        def postfix(x):
-            l = list(x[0])
-            return l[1](l[0])
-
-        self.privparser.pegparser = self.privparser.operatorPrecedence(
-            operand,
-            [
-                (_optional, 1, self.privparser.opAssoc.LEFT, postfix),
-                (_zero_or_more, 1, self.privparser.opAssoc.LEFT, postfix),
-                (_one_or_more, 1, self.privparser.opAssoc.LEFT, postfix),
-
-                (_names, 2, self.privparser.opAssoc.LEFT, infix),
-                (_ignore, 1, self.privparser.opAssoc.LEFT, postfix),
-
-                (_or, 2, self.privparser.opAssoc.LEFT, infix),
-                (_and, 2, self.privparser.opAssoc.LEFT, infix),
-
-            ]
-        )
-
     def _compile(self, token):
-        preparser = get_pyparsing('preparser%s' % id(self))
+        preparser = self.privparser
         preparser.ParserElement.setDefaultWhitespaceChars('')
 
         TOKENS = {}
@@ -379,33 +245,9 @@ class Parser(object):
             if isinstance(v, (tuple, list,)):
                 v0, v1 = v
             else:
-                v0, v1 = (v, None)
+                v0, v1 = (v, lambda x: x)
 
-            try:
-                if isinstance(v0, self.pubparser.ParserElement):
-                    pstring = self.pubparser.ParserElement
-                else:
-                    pstring = self.privparser.pegparser.parseString(
-                        v0.strip()
-                    )[0]
-
-                if v1:
-                    self.tokens[k] << pstring.setParseAction(v1)
-                else:
-                    self.tokens[k] << pstring
-
-                self.tokens[k]._parseString = self.tokens[k].parseString
-                self.tokens[k].parseString = (
-                    lambda self: (
-                        lambda instring, parseAll=True:
-                            self._parseString(instring, parseAll)
-                    )
-                )(self.tokens[k])
-
-            except Exception:
-                print('fail to process %s' % k)
-                raise
-
+            self.tokens[k] = self.peg(v0, name=k)(v1)
         return self.tokens
 
     def peg(self, peg_expr, name=None):
