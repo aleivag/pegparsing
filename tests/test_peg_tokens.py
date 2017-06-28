@@ -27,3 +27,28 @@ def test_token_token(parser, pyparsing):
     assert c['ll'].expr.name == c['st'].expr.name
     assert c['ll'].parseString('test1')[0] == 'test1'
     assert c['st'].parseString('test1')[0] == 'test1'
+
+
+def test_same_token(parser):
+    parser.expr.update({
+        'st': '"test1"',
+        'll': "st",
+    })
+    c1 = parser.compile()
+    c2 = parser.compile()
+
+    assert c1['ll'].expr is c1['ll'].expr
+    assert c1['ll'].expr is c2['ll'].expr
+
+
+def test_diferent_token_no_cache(parser):
+    parser.auto_cache = False
+    parser.expr.update({
+        'st': '"test1"',
+        'll': "st",
+    })
+    c1 = parser.compile()
+    c2 = parser.compile()
+
+    assert c1['ll'].expr is not c1['ll'].expr
+    assert c1['ll'].expr is not c2['ll'].expr

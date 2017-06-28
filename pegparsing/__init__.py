@@ -34,9 +34,11 @@ class ParseAction(object):
 
 
 class Parser(object):
-    def __init__(self, pubparser=None):
+    def __init__(self, pubparser=None, auto_cache=True):
         self.pubparser = get_pyparsing(pubparser)
         self.privparser = get_pyparsing('privparser%s' % id(self))
+        self.auto_cache = True
+        self.cache = {}
 
         self.expr = {
             k: v
@@ -50,11 +52,15 @@ class Parser(object):
 
         self.tokens = {}
 
-    def _compile(self, token):
+    def _compile(self, token, **kargs):
         preparser = self.privparser
         preparser.ParserElement.setDefaultWhitespaceChars('')
 
-        TOKENS = {}
+        cache_key = kargs.get('cache', self.auto_cache)
+        if cache_key and cache_key not in self.cache:
+            self.cache[cache_key] = {}
+
+        TOKENS = self.cache[cache_key] if cache_key else {}
         PEGPARSER = preparser.Forward()
 
         def get_token(token):
