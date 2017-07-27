@@ -55,6 +55,7 @@ class Parser(object):
     def _compile(self, token, **kargs):
         preparser = self.privparser
         preparser.ParserElement.setDefaultWhitespaceChars('')
+        preparser.ParserElement.enablePackrat()
 
         cache_key = kargs.get('cache', self.auto_cache)
         if cache_key and cache_key not in self.cache:
@@ -108,11 +109,11 @@ class Parser(object):
 
             return TOKENS[token]
 
-        WS = (
-            preparser.Literal(" ") |
-            preparser.Literal("\t") |
+        WS = preparser.MatchFirst([
+            preparser.Literal(" "),
+            preparser.Literal("\t"),
             preparser.Literal("\n")
-        )
+        ])
 
         def apply_method(method, varargs):
             for arg in varargs:
@@ -124,11 +125,11 @@ class Parser(object):
             return result
 
         def optional_ws(x):
-            return (
-                preparser.ZeroOrMore(WS).suppress() +
-                x +
+            return preparser.And([
+                preparser.ZeroOrMore(WS).suppress(),
+                x,
                 preparser.ZeroOrMore(WS).suppress()
-            )
+            ])
 
         qstring = (
             preparser.QuotedString("'") | preparser.QuotedString('"')
@@ -152,7 +153,13 @@ class Parser(object):
 
         method = preparser.Forward()
 
-        operand = name_dentifier | token_ident | qstring | regex | method
+        operand = preparser.MatchFirst([
+            name_dentifier,
+            token_ident,
+            qstring,
+            regex,
+            method
+        ])
 
         method_name = (
             preparser.Literal('$') +
@@ -161,25 +168,25 @@ class Parser(object):
             lambda r: self.methods[r[1]]
         )
 
-        method_argument = preparser.Optional(name_dentifier + preparser.Suppress(":")) + (
-            optional_ws(token_ident) |
-            optional_ws(qstring) |
-            optional_ws(regex) |
-            optional_ws(method) |
+        method_argument = preparser.Optional(name_dentifier + preparser.Suppress(":")) + preparser.MatchFirst([
+            optional_ws(token_ident),
+            optional_ws(qstring),
+            optional_ws(regex),
+            optional_ws(method),
             optional_ws(method_name)
-        )
+        ])
 
         method_argument = method_argument.setParseAction(
             lambda x: x[0] if len(x) == 1 else {x[0]['name']: x[1]})
 
         method_arguments = preparser.delimitedList(method_argument)
 
-        method << (
-            method_name +
-            preparser.Literal('[').suppress() +
-            method_arguments +
+        method << preparser.And([
+            method_name,
+            preparser.Literal('[').suppress(),
+            method_arguments,
             preparser.Literal(']').suppress()
-        ).setParseAction(
+        ]).setParseAction(
             lambda x: apply_method(x[0], x[1:])
         )
 
@@ -197,14 +204,10 @@ class Parser(object):
 
         _names = preparser.Literal(':').setParseAction(
             lambda u: nameAction)
-        _and = (preparser.OneOrMore(WS)).setParseAction(
+        _and = preparser.Regex(r'\s+').setParseAction(
             lambda u: lambda x, y: x + y)
 
-        _or = (
-            preparser.ZeroOrMore(WS) +
-            preparser.Literal("|") +
-            preparser.ZeroOrMore(WS)
-        ).setParseAction(
+        _or = preparser.Regex(r'\s*\|\s*').setParseAction(
             lambda u: lambda x, y: x | y)
 
         def infix(x):
